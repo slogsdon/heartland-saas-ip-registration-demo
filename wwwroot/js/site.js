@@ -12,17 +12,17 @@
  * semi-integrated peripheral.
  */
 
-document.addEventListener('DOMContentLoaded', () => {
-    const button = document.getElementById('start-pax-sale');
+document.addEventListener("DOMContentLoaded", () => {
+    const button = document.getElementById("start-pax-sale");
 
     if (button) {
-        button.addEventListener('click', async (e) => {
+        button.addEventListener("click", async (e) => {
             e.preventDefault();
 
-            const amountField = document.getElementById('sale-amount');
-            const refNumberField = document.getElementById('sale-ref-number');
+            const amountField = document.getElementById("sale-amount");
+            const refNumberField = document.getElementById("sale-ref-number");
 
-            const amount = amountField ? amountField.value : '1.00';
+            const amount = amountField ? amountField.value : "1.00";
             // this should be unique per request per semi-integrated peripheral
             const refNumber = refNumberField ? refNumberField.value : "1";
 
@@ -33,10 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 //   semi-integrated peripheral
                 // - get the Base64 encoded request(s) for completing the
                 //   CreditSale transaction
-                const response = await fetch('/api/creditSale', {
-                    method: 'POST',
+                const response = await fetch("/api/creditSale", {
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json',
+                        "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
                         stationId: 0,
@@ -46,50 +46,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 const json = await response.json();
-                const host = `http${json.isHttps ? 's' : ''}://${json.device.ipAddress}:${json.device.port}`;
+                // scope the eventual `postMessage` call from the popup
+                // to the current origin
+                json.origin = window.location.origin;
+                // general configuration for the popup
+                const popupOrigin = "http://localhost:5000";
+                const popupOptions = "width=10,height=10,menubar=no,location=no,resizable=no,scrollbars=no,status=no";
+                const popup = window.open(
+                    // send all of the necessary device connection details and
+                    // required commends via the location hash. another option
+                    // here would be to wait for the popup window to completely
+                    // load and use `postMessage` to send this data
+                    `${popupOrigin}/home/popup#${btoa(JSON.stringify(json))}`,
+                    "Device Proxy",
+                    popupOptions
+                );
 
-                for (const i in json.commands) {
-                    // get the device response for the current command
-                    const resp = await load(`${host}/?${json.commands[i]}`);
-                    // the Base64 encoded response data can be parsed locally or
-                    // by the remote SaaS service
-                    console.log(resp.byteLength, arrayBufferToBase64(resp));
-                    console.log(atob(arrayBufferToBase64(resp)));
-                }
+                // we're waiting for the popup window to complete it's work
+                window.addEventListener("message", (e) => {
+                    // verify the message is coming from the popup's origin
+                    if (e.origin !== popupOrigin) {
+                        return;
+                    }
+                    // close the window since it's not needed anymore
+                    popup.close();
+                    // handle the response(s) from the device
+                    console.log(e);
+                });
             } catch (e) {
                 console.error(e);
             }
         });
-
-        /**
-         * Issues request to `url` as URL-encoded form data
-         * @param {string} url 
-         * @return {Promise<ArrayBuffer>}
-         */
-        async function load(url) {
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-            });
-            return await response.arrayBuffer();
-        }
-
-        /**
-         * Converts a buffer to a Uint8Array and encodes as Base64
-         * @param {ArrayBuffer} buffer
-         * @return {string}
-         */
-        function arrayBufferToBase64(buffer) {
-            var binary = '';
-            var bytes = new Uint8Array(buffer);
-            var len = bytes.byteLength;
-            for (var i = 0; i < len; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
-            return btoa(binary);
-        }
     }
 
     /**
@@ -97,17 +84,17 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     
     const connection = new signalR.HubConnectionBuilder()
-        .withUrl('/deviceHub')
+        .withUrl("/deviceHub")
         .build();
     
-    connection.on('ReceiveDeviceRegistration', (deviceDetails) => {
-        console.log('DeviceRegistration', deviceDetails);
-        const list = document.getElementById('device-list');
+    connection.on("ReceiveDeviceRegistration", (deviceDetails) => {
+        console.log("DeviceRegistration", deviceDetails);
+        const list = document.getElementById("device-list");
         if (!list) {
             return;
         }
     
-        const li = document.createElement('li');
+        const li = document.createElement("li");
         li.textContent = JSON.stringify(deviceDetails);
         list.appendChild(li);
     });

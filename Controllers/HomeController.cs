@@ -33,6 +33,15 @@ namespace SaasIPRegistration.Demo.Controllers
             return View();
         }
 
+        /**
+         * Unsecure (HTTP) only endpoint for proxying device requests/responses
+         * from a secure context (HTTPS).
+         */
+        public IActionResult Popup()
+        {
+            return View();
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
